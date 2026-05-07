@@ -34,6 +34,11 @@ spec:
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "docker"
+            - name: USER_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: USER_DB
             - name: DB_URL
               value: "jdbc:postgresql://user-postgres:5432/$(USER_DB)"
             - name: DB_USERNAME

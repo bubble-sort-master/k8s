@@ -27,13 +27,30 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: order-service:latest
-          imagePullPolicy: Never
+          image: tintinnabuli/order-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: false
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "docker"
+            - name: ORDER_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: ORDER_DB
             - name: DB_URL
               value: "jdbc:postgresql://order-postgres:5432/$(ORDER_DB)"
             - name: DB_USERNAME

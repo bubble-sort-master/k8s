@@ -27,10 +27,22 @@ spec:
     spec:
       containers:
         - name: gateway
-          image: gateway:latest
-          imagePullPolicy: Never
+          image: tintinnabuli/gateway:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: false
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "docker"
@@ -57,6 +69,11 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: JWT_REFRESH_TOKEN_EXPIRATION
+            - name: INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: INTERNAL_SECRET
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness

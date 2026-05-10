@@ -27,13 +27,30 @@ spec:
     spec:
       containers:
         - name: user-service
-          image: user-service:latest
-          imagePullPolicy: Never
+          image: tintinnabuli/user-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: false
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "docker"
+            - name: USER_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: USER_DB
             - name: DB_URL
               value: "jdbc:postgresql://user-postgres:5432/$(USER_DB)"
             - name: DB_USERNAME
@@ -70,6 +87,11 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: JWT_REFRESH_TOKEN_EXPIRATION
+            - name: INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: INTERNAL_SECRET
           livenessProbe:
             httpGet:
               path: /actuator/health/liveness

@@ -27,13 +27,30 @@ spec:
     spec:
       containers:
         - name: auth-service
-          image: auth-service:latest
-          imagePullPolicy: Never
+          image: tintinnabuli/auth-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: false
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "docker"
+            - name: AUTH_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: AUTH_DB
             - name: DB_URL
               value: "jdbc:postgresql://auth-postgres:5432/$(AUTH_DB)"
             - name: DB_USERNAME

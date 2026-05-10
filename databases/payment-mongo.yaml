@@ -30,19 +30,101 @@ spec:
       containers:
         - name: mongo
           image: mongo:4.4
+          command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
           env:
             - name: MONGO_INITDB_DATABASE
               value: "payment-service"
           ports:
             - containerPort: 27017
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mongo --quiet --eval "db.adminCommand('ping').ok"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mongo --quiet --eval "db.adminCommand('ping').ok"
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           volumeMounts:
             - name: data
               mountPath: /data/db
   volumeClaimTemplates:
     - metadata:
         name: data
+        labels:
+          app: payment-mongo
       spec:
-        accessModes: [ "ReadWriteOnce" ]
+        accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: 1Gi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: payment-mongo-init
+  namespace: microservices-app
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app: payment-mongo-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mongo-init
+          image: mongo:4.4
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for MongoDB..."
+              until mongo --host payment-mongo-0.payment-mongo:27017 --eval "db.adminCommand('ping')" >/dev/null 2>&1; do
+                sleep 2
+              done
+
+              echo "Checking replica set status..."
+              mongo --host payment-mongo-0.payment-mongo:27017 --quiet <<'EOF'
+              try {
+                var status = rs.status();
+                print("Replica set already initialized, status: " + status.members[0].stateStr);
+              } catch (e) {
+                print("Replica set not yet initialized, running rs.initiate...");
+                rs.initiate({
+                  _id: "rs0",
+                  members: [
+                    { _id: 0, host: "payment-mongo-0.payment-mongo:27017" }
+                  ]
+                });
+              }
+
+              while (true) {
+                try {
+                  var st = rs.status();
+                  if (st.members && st.members[0].stateStr === "PRIMARY") {
+                    print("PRIMARY is ready");
+                    break;
+                  } else {
+                    print("Current state: " + st.members[0].stateStr + ", waiting for PRIMARY...");
+                  }
+                } catch (err) {
+                  print("Error while checking rs.status(), retrying...");
+                }
+                sleep(2000);
+              }
+              EOF

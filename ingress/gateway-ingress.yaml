@@ -4,8 +4,10 @@ metadata:
   name: gateway-ingress
   namespace: microservices-app
 spec:
+  ingressClassName: nginx
   rules:
-    - http:
+    - host: gateway.local
+      http:
         paths:
           - path: /
             pathType: Prefix

@@ -27,15 +27,27 @@ spec:
     spec:
       containers:
         - name: payment-service
-          image: payment-service:latest
-          imagePullPolicy: Never
+          image: tintinnabuli/payment-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: false
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           env:
             - name: SPRING_PROFILES_ACTIVE
               value: "docker"
             - name: MONGODB_URI
-              value: "mongodb://payment-mongo:27017/payment-service"
+              value: "mongodb://payment-mongo-0.payment-mongo:27017/payment-service?replicaSet=rs0"
             - name: KAFKA_BOOTSTRAP_SERVERS
               valueFrom:
                 configMapKeyRef:
